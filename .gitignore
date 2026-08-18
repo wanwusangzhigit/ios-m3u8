@@ -1,0 +1,52 @@
+# ============================================================
+# Xcode / Swift
+# ============================================================
+# Derived data / build 产物
+DerivedData/
+build/
+*.hmap
+*.ipa
+*.dSYM
+*.dSYM.zip
+
+# 用户态工程数据（签名、窗口布局等）
+xcuserdata/
+*.xcuserstate
+*.xcuserdatad/
+*.xccheckout
+*.moved-aside
+*.xcconfig.user
+*.xcresult
+
+# XcodeGen 生成物（可由 project.yml 重新生成，不入库）
+iosm3u8.xcodeproj/
+*.xcworkspace/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# ffmpeg-kit 二进制（体积大，需按 README 单独下载）
+Frameworks/
+
+# ============================================================
+# 编辑器 / 系统
+# ============================================================
+# macOS
+.DS_Store
+
+# JetBrains / VS Code
+.idea/
+.vscode/
+*.swp
+
+# ============================================================
+# 日志 / 临时 / 下载产物
+# ============================================================
+*.log
+*.tmp
+*.part
+
+# 本地测试输出
+test-output/
