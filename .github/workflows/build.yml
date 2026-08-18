@@ -1,0 +1,122 @@
+# ============================================================
+# CI：自动构建 macOS (Catalyst) / iOS / iPadOS 三平台应用
+# - 每次 push / PR / 手动触发
+# - 随机生成应用图标（每次构建不同）
+# - XcodeGen 生成工程（剥离可选 ffmpeg-kit 依赖）
+# - 构建 3 个平台产物并上传 artifact，iPadOS 模拟器跑单元测试
+# ============================================================
+name: CI Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build (${{ matrix.name }})
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: iOS Simulator
+            destination: generic/platform=iOS Simulator
+            product: Debug-iphonesimulator
+          - name: iOS Device
+            destination: generic/platform=iOS
+            product: Debug-iphoneos
+          - name: macOS Catalyst
+            destination: platform=macOS,variant=Mac Catalyst
+            product: Debug-maccatalyst
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 选择最新 Xcode
+        run: |
+          XCODE_PATH=$(ls -d /Applications/Xcode*.app | sort -V | tail -1)
+          sudo xcode-select -s "$XCODE_PATH"
+          xcodebuild -version
+
+      - name: 安装 XcodeGen
+        run: brew install xcodegen
+
+      - name: 随机生成应用图标
+        run: python3 scripts/ci/generate_icon.py
+
+      - name: 生成 CI 工程定义（剥离 ffmpeg-kit）
+        run: python3 scripts/ci/make_spec.py
+
+      - name: 生成 Xcode 工程
+        run: xcodegen generate --spec iosm3u8.ci.yml
+
+      - name: 构建
+        run: |
+          xcodebuild build \
+            -project iosm3u8.xcodeproj \
+            -scheme iosm3u8 \
+            -destination '${{ matrix.destination }}' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: iosm3u8-${{ matrix.name }}
+          path: build/Build/Products/${{ matrix.product }}/iosm3u8.app
+          if-no-files-found: error
+
+  test:
+    name: Unit Tests (iPadOS Simulator)
+    runs-on: macos-15
+    needs: build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 选择最新 Xcode
+        run: |
+          XCODE_PATH=$(ls -d /Applications/Xcode*.app | sort -V | tail -1)
+          sudo xcode-select -s "$XCODE_PATH"
+
+      - name: 安装 XcodeGen
+        run: brew install xcodegen
+
+      - name: 随机生成应用图标
+        run: python3 scripts/ci/generate_icon.py
+
+      - name: 生成 CI 工程定义（剥离 ffmpeg-kit）
+        run: python3 scripts/ci/make_spec.py
+
+      - name: 生成 Xcode 工程
+        run: xcodegen generate --spec iosm3u8.ci.yml
+
+      - name: 选择可用 iPad 模拟器
+        id: ipad
+        run: |
+          DEVICE=$(python3 scripts/ci/select_ipad.py)
+          echo "device=$DEVICE" >> "$GITHUB_OUTPUT"
+          echo "Using simulator: $DEVICE"
+
+      - name: 运行单元测试
+        run: |
+          xcodebuild test \
+            -project iosm3u8.xcodeproj \
+            -scheme iosm3u8 \
+            -destination 'platform=iOS Simulator,name=${{ steps.ipad.outputs.device }},OS=latest' \
+            -derivedDataPath build-test \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: 上传测试结果
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcresult
+          path: build-test/Logs/Test/*.xcresult
+          if-no-files-found: warn

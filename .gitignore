@@ -22,6 +22,11 @@ xcuserdata/
 iosm3u8.xcodeproj/
 *.xcworkspace/
 
+# CI 生成物（scripts/ci/ 在每次构建时重新生成）
+iosm3u8.ci.yml
+build-test/
+iosm3u8/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png
+
 # Swift Package Manager
 .build/
 .swiftpm/
@@ -40,6 +45,10 @@ Frameworks/
 .idea/
 .vscode/
 *.swp
+
+# Python（CI 辅助脚本缓存）
+__pycache__/
+*.pyc
 
 # ============================================================
 # 日志 / 临时 / 下载产物
